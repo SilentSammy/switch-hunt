@@ -40,8 +40,8 @@ class Circle:
 
 
 class Player:
-    PLAYER_ACCEL = 500
-    PLAYER_SPEED = 250
+    PLAYER_ACCEL = 1000
+    PLAYER_SPEED = 500
     ELASTIC_COLLISION = True
     SIZE = 25
     PLAYERS = set()
@@ -69,7 +69,17 @@ class Player:
         # get the relative angle of this player's position to the other player's position
         return math.atan2(self.position[1] - other.position[1], self.position[0] - other.position[0])
 
-    def update(self, delta_time):
+    def update_pos(self, delta_time):
+        # set new player position
+        self.position[0] += self.velocity[0] * delta_time
+        self.position[1] += self.velocity[1] * delta_time
+
+        # limit player to bounds of screen, accounting for player radius
+        SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_window().get_size()
+        self.position[0] = max(min(self.position[0], SCREEN_WIDTH - self.SIZE), self.SIZE)
+        self.position[1] = max(min(self.position[1], SCREEN_HEIGHT - self.SIZE), self.SIZE)
+
+    def update_vel(self, delta_time):
         accel = self.normalized_accel
         
         # set new player velocity
@@ -90,7 +100,7 @@ class Player:
                     # get the relative angle of this player to the other player
                     rel_angle = self.get_rel_angle(player)
                     
-                    rel_speed /= 2
+                    # rel_speed *= 0.75
 
                     # add to this player's velocity
                     self.velocity[0] -= math.cos(rel_angle) * rel_speed
@@ -103,17 +113,9 @@ class Player:
         # limit player velocity to PLAYER_SPEED
         self.velocity[0] = max(min(self.velocity[0], self.PLAYER_SPEED), -self.PLAYER_SPEED)
         self.velocity[1] = max(min(self.velocity[1], self.PLAYER_SPEED), -self.PLAYER_SPEED)
-        
-        # set new player position
-        self.position[0] += self.velocity[0] * delta_time
-        self.position[1] += self.velocity[1] * delta_time
-
-        # limit player to bounds of screen, accounting for player radius
-        SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_window().get_size()
-        self.position[0] = max(min(self.position[0], SCREEN_WIDTH - self.SIZE), self.SIZE)
-        self.position[1] = max(min(self.position[1], SCREEN_HEIGHT - self.SIZE), self.SIZE)
 
         # if player is touching a wall, stop or bounce
+        SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_window().get_size()
         if self.position[0] == self.SIZE or self.position[0] == SCREEN_WIDTH - self.SIZE:
             self.velocity[0] *= -1 if self.ELASTIC_COLLISION else 0
         if self.position[1] == self.SIZE or self.position[1] == SCREEN_HEIGHT - self.SIZE:

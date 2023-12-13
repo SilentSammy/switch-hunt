@@ -57,6 +57,8 @@ window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
 def setup():
     # Set up any game-specific initialization here
+    # players[0].velocity[0] = 100
+    # players[1].velocity[0] = -100
     pass
 
 def on_draw(delta_time):
@@ -65,12 +67,16 @@ def on_draw(delta_time):
         player.draw(delta_time)
 
 def update(delta_time):
+    # Update each player's position
+    for player in players:
+        player.update_pos(delta_time)
+    
     # update all hitboxes
     Circle.update_collisions()
 
-    # Update each player's movement
+    # Update each player's velocity
     for player in players:
-        player.update(delta_time)   
+        player.update_vel(delta_time)   
 
 def on_key_press(symbol, modifiers):
     for i, player in enumerate(players):
