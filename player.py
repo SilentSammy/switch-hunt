@@ -31,11 +31,12 @@ class Circle:
         
         # check for collisions between circles in each layer
         for layer in layers.values():
-            for circle1 in layer:
-                for circle2 in layer:
-                    if circle1 is not circle2 and circle1.collides_with(circle2):
-                        circle1.collisions.add(circle2)
-                        circle2.collisions.add(circle1)
+            for circle in layer:
+                # ignore current circle, and circles that have already collided with this circle
+                for other_circle in layer - {circle} - circle.collisions:
+                    if circle.collides_with(other_circle):
+                        circle.collisions.add(other_circle)
+                        other_circle.collisions.add(circle)
 
 
 class Player:
@@ -59,6 +60,22 @@ class Player:
         if all(self.acceleration):
             return [vel / math.sqrt(2) for vel in self.acceleration]
         return self.acceleration.copy()
+
+    @property
+    def vel_mag(self):
+        return math.hypot(*self.velocity)
+    
+    @vel_mag.setter
+    def vel_mag(self, value):
+        self.velocity = [vel / self.vel_mag * value for vel in self.velocity]
+    
+    @property
+    def vel_angle(self):
+        return math.atan2(*self.velocity)
+    
+    @vel_angle.setter
+    def vel_angle(self, value):
+        self.velocity = [self.vel_mag * math.cos(value), self.vel_mag * math.sin(value)]
 
     def update(self, delta_time):
         accel = self.normalized_accel
@@ -86,15 +103,26 @@ class Player:
         if self.position[1] == self.SIZE or self.position[1] == SCREEN_HEIGHT - self.SIZE:
             self.velocity[1] *= -1 if self.ELASTIC_COLLISION else 0
         
-        # if player is touching another player, stop or bounce
-        # for player in self.PLAYERS:
-        #     if player is not self and self.hitbox.collides_with(player.hitbox):
-        #         if self.ELASTIC_COLLISION:
-        #             self.velocity[0] *= -1
-        #             self.velocity[1] *= -1
-        #         else:
-        #             self.velocity = [0, 0]
-        #             player.velocity = [0, 0]
+        # if player is touching another player, and their relative velocity is positive, make them bounce
+        if self.hitbox.collisions:
+            for other in self.hitbox.collisions:
+                # get hitbox owner
+                other = next(filter(lambda player: player.hitbox is other, self.PLAYERS))
+
+                # calculate relative velocity
+                rel_vel = [self.velocity[i] - other.velocity[i] for i in range(2)]
+
+                # if relative velocity magnitude is positive
+                if math.hypot(*rel_vel) > 0:
+                    # calculate angle of incidence
+                    angle = math.atan2(other.position[1] - self.position[1], other.position[0] - self.position[0])
+
+                    # calculate angle of reflection
+                    new_angle = 2 * angle - self.vel_angle
+
+                    # set new velocities
+                    self.vel_angle = new_angle
+                    other.vel_angle = new_angle + math.pi
 
     def draw(self, delta_time):
         color = self.color
