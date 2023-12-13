@@ -40,17 +40,17 @@ class Circle:
 
 
 class Player:
-    PLAYER_ACCEL = 1000
-    PLAYER_SPEED = 500
+    PLAYER_ACCEL = 500
+    PLAYER_SPEED = 250
     ELASTIC_COLLISION = True
-    SIZE = 25
+    SIZE = 40
     PLAYERS = set()
 
-    def __init__(self, position: list, color):
+    def __init__(self, position: list, sprite):
         self.position = position
         self.velocity = [0, 0]
         self.acceleration = [0, 0]
-        self.color = color
+        self.sprite = sprite
         self.hitbox = Circle(self.position, self.SIZE)
         self.PLAYERS.add(self)
 
@@ -122,14 +122,21 @@ class Player:
             self.velocity[1] *= -1 if self.ELASTIC_COLLISION else 0
 
     def draw(self, delta_time):
-        color = self.color
+        # color = self.color
 
         # if player is touching another player, change color
-        if self.hitbox.collisions:
-            color = arcade.color.WHITE
+        # if self.hitbox.collisions:
+        #     color = arcade.color.WHITE
         
         # Draw the player's circle
-        arcade.draw_circle_filled(self.position[0], self.position[1], self.SIZE, color)
+        # arcade.draw_circle_filled(self.position[0], self.position[1], self.SIZE, color)
+
+        # Draw the player's sprite
+        self.sprite.center_x = self.position[0]
+        self.sprite.center_y = self.position[1]
+        self.sprite.draw()
+        
+        
 
 def polar_to_rect(radius, angle):
     return [radius * math.cos(angle), radius * math.sin(angle)]

@@ -48,7 +48,14 @@ starting_pos = [
     [SCREEN_WIDTH / 4, SCREEN_HEIGHT * 3 / 4],
     [SCREEN_WIDTH * 3 / 4, SCREEN_HEIGHT * 3 / 4]
 ]
-players = [Player(starting_pos[i], colors[i]) for i in range(4)]
+sprites = []
+for path in [f"sprites/{i+1}.png" for i in range(4)]:
+    texture = arcade.load_texture(path)
+    shortest_axis = min(texture.width, texture.height)
+    desired_size = Player.SIZE * 2
+    scale_factor = desired_size / shortest_axis
+    sprites.append(arcade.Sprite(path, scale=scale_factor))
+players = [Player(starting_pos[i], sprites[i]) for i in range(4)]
 
 # Create the game window
 window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
@@ -63,6 +70,7 @@ def setup():
 
 def on_draw(delta_time):
     arcade.start_render()
+    arcade.set_background_color(arcade.color.AMAZON)
     for player in players:
         player.draw(delta_time)
 
