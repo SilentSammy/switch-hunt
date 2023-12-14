@@ -1,6 +1,8 @@
 import arcade
 import math
 from player import Player, Circle
+import os
+import glob
 
 # Set up the window dimensions
 SCREEN_WIDTH = 800
@@ -48,13 +50,17 @@ starting_pos = [
     [SCREEN_WIDTH / 4, SCREEN_HEIGHT * 3 / 4],
     [SCREEN_WIDTH * 3 / 4, SCREEN_HEIGHT * 3 / 4]
 ]
+
+# load sprites
 sprites = []
-for path in [f"sprites/{i+1}.png" for i in range(4)]:
+for path in glob.glob("sprites/*.png"):
+    # Your code here
     texture = arcade.load_texture(path)
     shortest_axis = min(texture.width, texture.height)
-    desired_size = Player.SIZE * 2
+    desired_size = Player.SIZE * 3
     scale_factor = desired_size / shortest_axis
     sprites.append(arcade.Sprite(path, scale=scale_factor))
+
 players = [Player(starting_pos[i], sprites[i]) for i in range(4)]
 
 # Create the game window

@@ -80,12 +80,6 @@ class Player:
         self.position[1] = max(min(self.position[1], SCREEN_HEIGHT - self.SIZE), self.SIZE)
 
     def update_vel(self, delta_time):
-        accel = self.normalized_accel
-        
-        # set new player velocity
-        self.velocity[0] += accel[0] * self.PLAYER_ACCEL * delta_time
-        self.velocity[1] += accel[1] * self.PLAYER_ACCEL * delta_time
-
         # if player is touching another player
         if self.hitbox.collisions:
             for hitbox in self.hitbox.collisions:
@@ -100,7 +94,8 @@ class Player:
                     # get the relative angle of this player to the other player
                     rel_angle = self.get_rel_angle(player)
                     
-                    # rel_speed *= 0.75
+                    if not self.ELASTIC_COLLISION:
+                        rel_speed *= 0.5
 
                     # add to this player's velocity
                     self.velocity[0] -= math.cos(rel_angle) * rel_speed
@@ -120,23 +115,25 @@ class Player:
             self.velocity[0] *= -1 if self.ELASTIC_COLLISION else 0
         if self.position[1] == self.SIZE or self.position[1] == SCREEN_HEIGHT - self.SIZE:
             self.velocity[1] *= -1 if self.ELASTIC_COLLISION else 0
+        
+        accel = self.normalized_accel
+        
+        # set new player velocity
+        self.velocity[0] += accel[0] * self.PLAYER_ACCEL * delta_time
+        self.velocity[1] += accel[1] * self.PLAYER_ACCEL * delta_time
 
     def draw(self, delta_time):
-        # color = self.color
-
-        # if player is touching another player, change color
-        # if self.hitbox.collisions:
-        #     color = arcade.color.WHITE
-        
-        # Draw the player's circle
-        # arcade.draw_circle_filled(self.position[0], self.position[1], self.SIZE, color)
-
-        # Draw the player's sprite
+        # Draw the player's sprite oriented in the direction of the player's velocity
         self.sprite.center_x = self.position[0]
         self.sprite.center_y = self.position[1]
+        
+        # if the player is not moving, don't rotate the sprite
+        if any(self.velocity):
+            self.sprite.angle = math.degrees(math.atan2(self.velocity[1], self.velocity[0]))-90
         self.sprite.draw()
         
-        
+        # Draw the player's circle
+        arcade.draw_circle_outline(self.position[0], self.position[1], self.SIZE, arcade.color.WHITE)
 
 def polar_to_rect(radius, angle):
     return [radius * math.cos(angle), radius * math.sin(angle)]
