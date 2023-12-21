@@ -3,63 +3,34 @@ from datetime import timedelta
 import arcade
 import math
 
-
-class Circle:
-    LAYERS = {}
-
-    def __init__(self, position: list, radius, layers=[0]):
-        self.position = position
-        self.radius = radius
-        for layer in layers:
-            self.LAYERS.setdefault(layer, set()).add(self)
-        self.collisions = set()
-
-    def collides_with(self, other):
-        # if the distance between the two objects is less than the sum of their radii, they collide
-        return (
-            math.hypot(
-                self.position[0] - other.position[0],
-                self.position[1] - other.position[1],
-            )
-            < self.radius + other.radius
-        )
-
-    @staticmethod
-    def update_collisions(layers=None):
-        layers = layers or Circle.LAYERS
-
-        # get all circles
-        circles = set().union(*layers.values())
-
-        # clear all collisions
-        for circle in circles:
-            circle.collisions.clear()
-
-        # check for collisions between circles in each layer
-        for layer in layers.values():
-            for circle in layer:
-                # ignore current circle, and circles that have already collided with this circle
-                for other_circle in layer - {circle} - circle.collisions:
-                    if circle.collides_with(other_circle):
-                        circle.collisions.add(other_circle)
-                        other_circle.collisions.add(circle)
-
-
 class Player:
     PLAYER_ACCEL = 500
     PLAYER_SPEED = 250
     ELASTIC_COLLISION = True
-    SIZE = 40
     PLAYERS = set()
+    PLAYER_LIVES = 3
 
-    def __init__(self, position: list, sprite):
+    def __init__(self, position: list, sprite, role = 1):
         self.position = position
         self.velocity = [0, 0]
         self.acceleration = [0, 0]
         self.sprite = sprite
         self.braking = False
-        self.hitbox = Circle(self.position, self.SIZE)
         self.PLAYERS.add(self)
+        self.size = 40
+        self._hp = 1
+    
+    @staticmethod
+    def handle_collision(player, other_player):
+        pass
+    
+    @property
+    def hp(self):
+        return round(self._hp, 2)
+
+    @hp.setter
+    def hp(self, value):
+        self._hp = max(min(value, 1), 0)
 
     @property
     def effective_accel(self):
@@ -105,13 +76,20 @@ class Player:
         # limit player to bounds of screen, accounting for player radius
         SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_window().get_size()
         self.position[0] = max(
-            min(self.position[0], SCREEN_WIDTH - self.SIZE), self.SIZE
+            min(self.position[0], SCREEN_WIDTH - self.size), self.size
         )
         self.position[1] = max(
-            min(self.position[1], SCREEN_HEIGHT - self.SIZE), self.SIZE
+            min(self.position[1], SCREEN_HEIGHT - self.size), self.size
         )
 
-    def update_vel(self, delta_time):
+    def update(self, delta_time):
+        self.hp -= 0.1 * delta_time
+        self.accelerate(delta_time)
+        self.check_collisions()
+        self.check_wall_collision()
+        self.limit_speed()
+    
+    def accelerate(self, delta_time):
         # accelerate player
         accel = self.effective_accel
         prev_velocity = self.velocity.copy()
@@ -124,41 +102,48 @@ class Player:
             if math.copysign(1, prev_velocity[1]) != math.copysign(1, self.velocity[1]):
                 self.velocity[1] = 0
 
-        # if player is touching another player
-        if self.hitbox.collisions:
-            for hitbox in self.hitbox.collisions:
-                # get the owner of the hitbox
-                player = next(player for player in self.PLAYERS if player.hitbox is hitbox)
+    def check_collisions(self):
+        for other_player in Player.PLAYERS - {self}:
+            if id(self) < id(other_player) and self.collides_with(other_player):
+                self.collide(other_player)
 
-                # get the relative velocity of this player to the other player
-                rel_speed = self.get_rel_speed(player)
+    def collides_with(self, other):
+        return math.hypot(self.position[0] - other.position[0],self.position[1] - other.position[1]) < self.size + other.size
 
-                # if this player is approaching the other player
-                if rel_speed < 0:
-                    # get the relative angle of this player to the other player
-                    rel_angle = self.get_rel_angle(player)
+    def collide(self, other_player):
+        # get the relative velocity of this player to the other player
+        rel_speed = self.get_rel_speed(other_player)
 
-                    if not self.ELASTIC_COLLISION:
-                        rel_speed *= 0.5
+        # if this player is approaching the other player
+        if rel_speed < 0:
+            # get the relative angle of this player to the other player
+            rel_angle = self.get_rel_angle(other_player)
 
-                    # add to this player's velocity
-                    self.velocity[0] -= math.cos(rel_angle) * rel_speed
-                    self.velocity[1] -= math.sin(rel_angle) * rel_speed
+            if not self.ELASTIC_COLLISION:
+                rel_speed *= 0.5
 
-                    # add to the other player's velocity
-                    player.velocity[0] += math.cos(rel_angle) * rel_speed
-                    player.velocity[1] += math.sin(rel_angle) * rel_speed
+            # define a bounce vector
+            bounce = [math.cos(rel_angle) * rel_speed, math.sin(rel_angle) * rel_speed]
 
-        # limit player velocity to PLAYER_SPEED
-        self.velocity[0] = max(min(self.velocity[0], self.PLAYER_SPEED), -self.PLAYER_SPEED)
-        self.velocity[1] = max(min(self.velocity[1], self.PLAYER_SPEED), -self.PLAYER_SPEED)
+            # subtract bounce vector from this player's velocity
+            self.velocity = [self.velocity[i] - bounce[i] for i in range(2)]
+            
+            # add bounce vector to other player's velocity
+            other_player.velocity = [other_player.velocity[i] + bounce[i] for i in range(2)]
 
+    def check_wall_collision(self):
         # if player is touching a wall, stop or bounce
         SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_window().get_size()
-        if (self.position[0] == self.SIZE or self.position[0] == SCREEN_WIDTH - self.SIZE):
+        if (self.position[0] == self.size or self.position[0] == SCREEN_WIDTH - self.size):
             self.velocity[0] *= -1 if self.ELASTIC_COLLISION else 0
-        if (self.position[1] == self.SIZE or self.position[1] == SCREEN_HEIGHT - self.SIZE):
+        if (self.position[1] == self.size or self.position[1] == SCREEN_HEIGHT - self.size):
             self.velocity[1] *= -1 if self.ELASTIC_COLLISION else 0
+
+    def limit_speed(self):
+        # limit velocity magnitude to PLAYER_SPEED
+        speed = math.hypot(self.velocity[0], self.velocity[1])
+        if speed > self.PLAYER_SPEED:
+            self.velocity = [self.velocity[0] * self.PLAYER_SPEED / speed, self.velocity[1] * self.PLAYER_SPEED / speed]
 
     def draw(self, delta_time):
         # Draw the player's sprite oriented in the direction of the player's velocity
@@ -167,15 +152,18 @@ class Player:
 
         # if the player is not moving, don't rotate the sprite
         if any(self.velocity):
-            self.sprite.angle = (
-                math.degrees(math.atan2(self.velocity[1], self.velocity[0])) - 90
-            )
+            self.sprite.angle = math.degrees(math.atan2(self.velocity[1], self.velocity[0])) - 90
         self.sprite.draw()
 
-        # Draw the player's circle
-        arcade.draw_circle_outline(
-            self.position[0], self.position[1], self.SIZE, arcade.color.WHITE
-        )
+        # define an RGB color based on the player's hp
+        hp_color = [int(255 * (1 - self.hp)), int(255 * self.hp), 0]
+
+
+        # draw the player's hp as an arc around the player
+        arcade.draw_arc_outline(self.position[0], self.position[1], self.size * 2, self.size * 2, hp_color, 0, 360 * self.hp, 10)
+
+    def lose_life(self):
+        self.hp -= 1/self.PLAYER_LIVES
 
     def __str__(self):
         # we return every attribute and property of the player (rounded to two decimals) separated by new lines
@@ -186,13 +174,12 @@ class Player:
                 f"Acceleration: {self.acceleration[0]:.2f}, {self.acceleration[1]:.2f}",
                 f"Effective Acceleration: {self.effective_accel[0]:.2f}, {self.effective_accel[1]:.2f}",
                 f"Braking: {self.braking}",
+                f"HP: {self.hp:.2f}",
             ]
         )
 
-
 def polar_to_rect(radius, angle):
     return [radius * math.cos(angle), radius * math.sin(angle)]
-
 
 if __name__ == "__main__":
     pass

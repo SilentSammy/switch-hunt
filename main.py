@@ -1,6 +1,6 @@
 import arcade
 import math
-from player import Player, Circle
+from player import Player
 import os
 import glob
 
@@ -10,8 +10,6 @@ SCREEN_HEIGHT = 600
 SCREEN_TITLE = "My Arcade Game"
 
 # Player settings
-PLAYER_SPEED = 250
-PLAYER_ACCEL = 500
 keybindings = [
     {
         "accel": {
@@ -62,33 +60,28 @@ starting_pos = [
     [SCREEN_WIDTH / 4, SCREEN_HEIGHT * 3 / 4],
     [SCREEN_WIDTH * 3 / 4, SCREEN_HEIGHT * 3 / 4]
 ]
-
-# load sprites
-sprites = []
-for path in glob.glob("sprites/prey/*.png"):
-    # Your code here
-    texture = arcade.load_texture(path)
-    shortest_axis = min(texture.width, texture.height)
-    desired_size = Player.SIZE * 3
-    scale_factor = desired_size / shortest_axis
-    sprites.append(arcade.Sprite(path, scale=scale_factor))
-
-players = [Player(starting_pos[i], sprites[i]) for i in range(4)]
+players = []
 
 # Create the game window
 window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
-# Set up any additional game initialization here
-
 def setup():
-    # Set up any game-specific initialization here
-    # players[0].velocity[0] = 100
-    # players[1].velocity[0] = -100
-    pass
+    # load sprites
+    sprites = []
+    for path in glob.glob("sprites/prey/*.png"):
+        # Your code here
+        texture = arcade.load_texture(path)
+        shortest_axis = min(texture.width, texture.height)
+        desired_size = 40 * 3
+        scale_factor = desired_size / shortest_axis
+        sprites.append(arcade.Sprite(path, scale=scale_factor))
+
+    global players
+    players = [Player(starting_pos[i], sprites[i]) for i in range(4)]
 
 def on_draw(delta_time):
     arcade.start_render()
-    arcade.set_background_color(arcade.color.AMAZON)
+    arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
     for player in players:
         player.draw(delta_time)
     
@@ -105,12 +98,9 @@ def update(delta_time):
     for player in players:
         player.update_pos(delta_time)
     
-    # update all hitboxes
-    Circle.update_collisions()
-
-    # Update each player's velocity
+    # Update players
     for player in players:
-        player.update_vel(delta_time)   
+        player.update(delta_time)
 
 def on_key_press(symbol, modifiers):
     # print the key that was pressed
@@ -141,10 +131,10 @@ def main():
     setup()
 
     # Set up the game window to call the on_draw function every frame
-    arcade.schedule(on_draw, 1 / 30)
+    arcade.schedule(on_draw, 1 / 60)
 
     # Set up the game window to call the update function every frame
-    arcade.schedule(update, 1 / 30)
+    arcade.schedule(update, 1 / 60)
     
     # Set up the game window to call the on_key_press function when a key is pressed
     window.on_key_press = on_key_press
