@@ -18,15 +18,16 @@ class Player:
         self.braking = False
         self.PLAYERS.add(self)
         self.size = 40
+        self.role = role
         self._hp = 1
-    
-    @staticmethod
-    def handle_collision(player, other_player):
-        pass
+        self.timers = {
+            "invincible": 0,
+            "dying": 0,
+        }
     
     @property
     def hp(self):
-        return round(self._hp, 2)
+        return round(self._hp, 4)
 
     @hp.setter
     def hp(self, value):
@@ -83,11 +84,16 @@ class Player:
         )
 
     def update(self, delta_time):
-        self.hp -= 0.1 * delta_time
+        if self.role == 2:
+            self.hp -= 0.1 * delta_time
         self.accelerate(delta_time)
         self.check_collisions()
         self.check_wall_collision()
         self.limit_speed()
+        
+        # subtract delta_time from all timers, limiting them to 0
+        for timer in self.timers:
+            self.timers[timer] = max(self.timers[timer] - delta_time, 0)
     
     def accelerate(self, delta_time):
         # accelerate player
@@ -111,6 +117,16 @@ class Player:
         return math.hypot(self.position[0] - other.position[0],self.position[1] - other.position[1]) < self.size + other.size
 
     def collide(self, other_player):
+        if self.role == other_player.role:
+            self.bounce(other_player)
+        elif self.timers["invincible"] == 0:
+            # the player with role 1 dies, the player with role 2 gains hp
+            if self.role == 1:
+                other_player.eat(self)
+            else:
+                self.eat(other_player)
+    
+    def bounce(self, other_player):
         # get the relative velocity of this player to the other player
         rel_speed = self.get_rel_speed(other_player)
 
@@ -145,6 +161,28 @@ class Player:
         if speed > self.PLAYER_SPEED:
             self.velocity = [self.velocity[0] * self.PLAYER_SPEED / speed, self.velocity[1] * self.PLAYER_SPEED / speed]
 
+    def eat(self, other_player):
+        hp_taken = min((1 / Player.PLAYER_LIVES), other_player.hp)
+        other_player.hp -= hp_taken
+        self.hp += hp_taken
+
+        if other_player.hp <= 0:
+            other_player.die()
+        else:
+            other_player.respawn()
+
+    def die(self):
+        self.timers["dying"] = 3
+
+    def respawn(self):
+        # reset player position and velocity
+        SCREEN_WIDTH, SCREEN_HEIGHT = arcade.get_window().get_size()
+        self.position = [SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2]
+        self.velocity = [0, 0]
+
+        # make player invincible for 3 seconds
+        self.timers["invincible"] = 3
+
     def draw(self, delta_time):
         # Draw the player's sprite oriented in the direction of the player's velocity
         self.sprite.center_x = self.position[0]
@@ -153,17 +191,16 @@ class Player:
         # if the player is not moving, don't rotate the sprite
         if any(self.velocity):
             self.sprite.angle = math.degrees(math.atan2(self.velocity[1], self.velocity[0])) - 90
+        
+        # the more invincible the player is, the more transparent the sprite is
+        self.sprite.alpha = 255 * (1 - self.timers["invincible"] / 3)
         self.sprite.draw()
 
         # define an RGB color based on the player's hp
         hp_color = [int(255 * (1 - self.hp)), int(255 * self.hp), 0]
 
-
         # draw the player's hp as an arc around the player
         arcade.draw_arc_outline(self.position[0], self.position[1], self.size * 2, self.size * 2, hp_color, 0, 360 * self.hp, 10)
-
-    def lose_life(self):
-        self.hp -= 1/self.PLAYER_LIVES
 
     def __str__(self):
         # we return every attribute and property of the player (rounded to two decimals) separated by new lines

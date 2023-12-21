@@ -60,7 +60,7 @@ starting_pos = [
     [SCREEN_WIDTH / 4, SCREEN_HEIGHT * 3 / 4],
     [SCREEN_WIDTH * 3 / 4, SCREEN_HEIGHT * 3 / 4]
 ]
-players = []
+players = Player.PLAYERS
 
 # Create the game window
 window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
@@ -76,8 +76,9 @@ def setup():
         scale_factor = desired_size / shortest_axis
         sprites.append(arcade.Sprite(path, scale=scale_factor))
 
-    global players
-    players = [Player(starting_pos[i], sprites[i]) for i in range(4)]
+    for i in range(4):
+        Player(starting_pos[i], sprites[i])
+    list(players)[0].role = 2
 
 def on_draw(delta_time):
     arcade.start_render()
